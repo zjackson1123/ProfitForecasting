@@ -1,0 +1,8 @@
+body
+{
+    width:calc(100% - 8px);
+    height:100%;
+    text-align:center;
+    background-color:#171717;
+    color:#e6e6e6;
+}

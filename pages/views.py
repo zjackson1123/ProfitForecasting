@@ -7,10 +7,11 @@ from Model import MLmodel
 @app.route('/home')
 
 def home():
-    df = MLmodel.scaledData()
+    img = MLmodel.supervisedLearning()
     return render_template(
         "index.html",
         title = "Profit Forecasting",
-        plot = df)
+        plot = img,
+        rmse = MLmodel.MSE)
         #tables = [df.to_html()],
         #titles = [''])

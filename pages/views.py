@@ -7,7 +7,7 @@ from Model import MLmodel
 @app.route('/home')
 
 def home():
-    df = MLmodel.scaledData()
+    df = MLmodel.Predict()
     return render_template(
         "index.html",
         title = "Profit Forecasting",

@@ -29,6 +29,12 @@
     <Compile Include="Model\MLmodel.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Model\PrepData.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Model\WindowGen.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Pages\views.py">
       <SubType>Code</SubType>
     </Compile>

@@ -12,10 +12,10 @@
     {{titles[loop.index]}}            
     {{ table|safe }}
 {% endfor %}-->
-
-    <img src="data:image/png;base64, {{ plot }}" alt="Placeholder Text" height="500" width="500" />
-    <br />
-    <span>{{ rmse }}</span>
+    {% for img in imgs %}
+    <img src="data:image/png;base64, {{ img }}" alt="Placeholder Text" height="500" width="500" />
+    {% endfor %}
+    {{ table|safe }}
 
 </body>
 </html>

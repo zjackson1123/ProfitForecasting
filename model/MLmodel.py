@@ -53,7 +53,7 @@ def diff(dataset, interval=1):
     return pandas.Series(diff)
 
 def invertDiff(history, yhat, interval=1):
-    return yhat+history[:41][-interval]
+    return yhat+history[:121][-interval]
 
 def fit_ltsm(train, batch_size, nb_epoch, neurons):
     x, y = train[:,0:-1], train[:,-1]
@@ -94,20 +94,21 @@ def forecast_lstm(model, batch_size, x):
 #    plot_url = base64.b64encode(img.getvalue()).decode('utf-8')
 #    return plot_url
 
-def supervisedLearning():
-    dataframe = pandas.read_csv(path, header=0, parse_dates=[0], index_col=0, date_parser=parser, skiprows=1)
-    dates = dataframe.iloc[31:41].index
+def supervisedLearning(epochs, dataframe, plot_urls):
+
+    dates = dataframe.iloc[91:121].index
     raw_values = dataframe.iloc[:,0].values
     diff_values = diff(raw_values, 1)
     supervised = shiftTimeSeries(diff_values, 1)
     supervised_values = supervised.values
-    train, test = supervised_values[:30], supervised_values[31:41] 
+    train, test = supervised_values[:90], supervised_values[91:121] 
     
     scaler, train_scaled, test_scaled = scale(train, test)
-    lstm_model = fit_ltsm(train_scaled, 1, 100, 4)
+   
+    lstm_model = fit_ltsm(train_scaled, 1, epochs, 4)
     train_reshaped = train_scaled[:,0].reshape(len(train_scaled), 1, 1)
     lstm_model.predict(train_reshaped, batch_size=1)
-
+    error = list()
     predictions = list()
     for i in range(len(test_scaled)):
         x, y = test_scaled[i, 0:-1], test_scaled[i, -1]
@@ -116,16 +117,29 @@ def supervisedLearning():
         predictions.append(yhat)
         expected = raw_values[len(train) + i + 1]
 
-    global MSE 
-    MSE = sqrt(mean_squared_error(raw_values[31:41], predictions))
-    plot.plot(dates, raw_values[31:41], color='r')
-    plot.plot(dates, predictions, color='b')
+    mse = sqrt(mean_squared_error(raw_values[91:121], predictions))
+    print('%d) Test RMSE: %.3f' % (1, mse))
+    error.append(mse)
+    plot.plot(raw_values[91:121], color='r')
+    plot.plot(predictions, color='b')
     img = BytesIO()
     plot.savefig(img, format='png')
     img.seek(0)
     plot_url = base64.b64encode(img.getvalue()).decode('utf-8')
-    return plot_url
+    plot_urls.append(plot_url)
+    return error
 
+
+def errorScores():
+     dataframe = pandas.read_csv(path, header=0, parse_dates=[0], index_col=0, date_parser=parser, skiprows=1)
+     errors = pandas.DataFrame()
+     plot_urls = list()
+     epochs = [10, 50, 100, 200, 300]
+     for e in epochs:         
+         errors[str(e)] = supervisedLearning(e, dataframe, plot_urls)
+
+
+     return plot_urls, errors.to_html
 
 #def scaledData():
 #    np = dataframe.to_numpy()

@@ -1,4 +1,3 @@
-from re import T
 from flask import render_template
 from Pages import app
 from Model import MLmodel

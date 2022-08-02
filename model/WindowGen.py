@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plot
 import tensorflow as tf
+import Model.PrepData as pd
 from io import BytesIO
 import base64
 
@@ -34,16 +35,17 @@ class temp():
                 f'Label indices: {self.label_indices}',
                 f'Label column name(s): {self.label_columns}'])          
 
-    def plot(self, model=None, plot_col = 'Open', max_subplots=3):
+    def plot(self, scaler, model=None, plot_col = 'Open', max_subplots=1):
         inputs, labels = self.example
-        #plot.figure(figsize=(12,8))
+        revert = pd.PrepData()
+        plot.figure(figsize=(12,8))
         plot_col_index = self.column_indices[plot_col]
         max_n = min(max_subplots, len(inputs))
         for n in range(max_n):
-            #plot.subplot(max_n, 1, n+1)
-            #plot.ylabel(f'{plot_col} [normed]')
-            #plot.plot(self.input_indices, inputs[n, :, plot_col_index], label='Inputs', marker='.', zorder=-10)
-
+            plot.subplot(max_n, 1, n+1)
+            plot.ylabel(f'{plot_col} [normed]')
+            displayinputs = revert.revert_data(inputs[n,:,:], scaler)
+            plot.plot(self.input_indices, displayinputs[:, plot_col_index], label='Input', marker='.', zorder=-10)
             if self.label_columns:
                 label_col_index = self.label_columns_indices.get(plot_col, None)
             else:
@@ -51,17 +53,14 @@ class temp():
 
             if label_col_index is None:
                 continue
-            #plot.scatter(self.label_indices, labels[n, :, label_col_index], edgecolors='k', label='Labels', c='#2ca02c', s=64)
+            displaylabels = revert.revert_data(labels[n,:,:], scaler)
+            plot.scatter(self.label_indices, displaylabels[:, label_col_index], edgecolors='k', label='Actual', c='#2ca02c', s=64)
             if model is not None:
                 predictions = model(inputs)
-                #plot.scatter(self.label_indices, predictions[n, :, label_col_index], marker='X', edgecolors='k', label='Predictions', c='#ff7f0e', s=64)
-            #if n == 0:
-                #plot.legend()
-        plot.bar(x = range(len(self.train_df.columns)),
-        height=model.layers[0].kernel[:,0].numpy())
-        axis = plot.gca()
-        axis.set_xticks(range(len(self.train_df.columns)))
-        _ = axis.set_xticklabels(self.train_df.columns, rotation=90)
+                predictions = revert.revert_data(predictions[n,:,:], scaler)
+                plot.scatter(self.label_indices, predictions[:, label_col_index], marker='X', edgecolors='k', label='Prediction', c='#ff7f0e', s=64)
+            if n == 0:
+                plot.legend()
         img = BytesIO()
         plot.savefig(img, format='png')
         img.seek(0)
@@ -120,30 +119,48 @@ class temp():
     WindowGen.val = val
     WindowGen.test = test
     WindowGen.example = example
-    class Baseline(tf.keras.Model):
-        def __init__(self, label_index = None):
+    class FeedBack(tf.keras.Model):
+        def __init__(self, units, out_steps):
             super().__init__()
-            self.label_index = label_index
+            self.out_steps = out_steps
+            self.units = units
+            self.lstm_cell = tf.keras.layers.LSTMCell(units)
+            self.lstm_rnn = tf.keras.layers.RNN(self.lstm_cell, return_state=True)
+            self.dense = tf.keras.layers.Dense(2)
+            
 
-        def call(self, inputs):
-            if self.label_index is None:
-                return inputs
-            result = inputs[:, :, self.label_index]
-            return result[:, :, tf.newaxis]  
+    def warmup(self, inputs):
+      x, *state = self.lstm_rnn(inputs)
+      prediction = self.dense(x)
+      return prediction, state
 
-    def compile_and_fit(model, window, patience=2):
-        MAX_EPOCHS = 20
-        early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss',
-                                                    patience=patience,
-                                                    mode='min')
+    FeedBack.warmup = warmup
+    def call(self, inputs, training=None):
+      predictions = []
+      prediction, state = self.warmup(inputs)
+      predictions.append(prediction)
+      for n in range(1, self.out_steps):
+        x = prediction
+        x, state = self.lstm_cell(x, states=state,
+                                  training=training)
+        prediction = self.dense(x)
+        predictions.append(prediction)
+      predictions = tf.stack(predictions)
+      predictions = tf.transpose(predictions, [1, 0, 2])
+      return predictions
+
+    FeedBack.call = call
+
+    def compile_and_fit(model, window):
+        MAX_EPOCHS = 300
 
         model.compile(loss=tf.keras.losses.MeanSquaredError(),
                 optimizer=tf.keras.optimizers.Adam(),
                 metrics=[tf.keras.metrics.MeanAbsoluteError()])
 
+
         history = model.fit(window.train, epochs=MAX_EPOCHS,
-                      validation_data=window.val,
-                      callbacks=[early_stopping])
+                      validation_data=window.val)
         return history
 
      

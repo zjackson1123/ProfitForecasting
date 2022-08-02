@@ -15,21 +15,16 @@ path = cd + "/Google.csv"
 def Predict():
     names = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
     dataframe = pandas.read_csv(path, header=None, names=names, parse_dates=[0], dtype=numpy.float64, index_col=0, skiprows=1)
-    dataframe = dataframe.iloc[:,0:4].astype(numpy.float64)
+    dataframe = dataframe.iloc[:,[0,3]].astype(numpy.float64)
     prep = pd.PrepData()
-    prepped_data = prep.prep_Data(dataframe.iloc[:191])
-    train_df = prepped_data[:89]
-    val_df = prepped_data[90:140]
-    test_df = prepped_data[141:190]
-    window = win.temp.WindowGen(input_width=24, label_width=24, shift=1, label_columns=['Open'], train_df = train_df, val_df = val_df, test_df = test_df)
-    baseline = win.temp.Baseline(label_index=window.column_indices['Open'])
-    baseline.compile(loss=tf.keras.losses.MeanSquaredError(), metrics=[tf.keras.metrics.MeanAbsoluteError()])
-    linear = tf.keras.Sequential([
-        tf.keras.layers.Dense(units=1)
-    ])
-    history = win.temp.compile_and_fit(linear, window)
-
-    plot_url = window.plot(linear)
+    prepped_data, scaler = prep.prep_data(dataframe.iloc[:1001])
+    train_df = prepped_data[:499]
+    val_df = prepped_data[500:550]
+    test_df = prepped_data[551:650]
+    window = win.temp.WindowGen(input_width=100, label_width=25, shift=25, train_df = train_df, val_df = val_df, test_df = test_df)
+    feedback_model = win.temp.FeedBack(units=100, out_steps=25)
+    history = win.temp.compile_and_fit(feedback_model, window)
+    plot_url = window.plot(scaler, feedback_model)
 
     return plot_url
 

@@ -8,12 +8,20 @@
 </head>
 <body>
 
-<!--{% for table in tables %}
-    {{titles[loop.index]}}            
-    {{ table|safe }}
-{% endfor %}-->
+    <!--{% for table in tables %}
+        {{titles[loop.index]}}
+        {{ table|safe }}
+    {% endfor %}-->
 
     <img src="data:image/png;base64, {{ plot }}" alt="Placeholder Text" height="800" width="800" />
+    <br />
+    <span>Loss: {{ loss }}</span>
+    <br />
+    <span>RMSE: {{ rmse }}</span>
+    <br />
+    <span>Number of Epochs: {{ epochs }}</span>
+    <br />
+    <span>Batch Size: {{ batch_size }}</span>
 
 
 </body>

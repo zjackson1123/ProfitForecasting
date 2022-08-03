@@ -1,22 +1,23 @@
+from pickle import TRUE
 import numpy as np
 import matplotlib.pyplot as plot
 import tensorflow as tf
 import Model.PrepData as pd
+from sklearn import metrics
 from io import BytesIO
 import base64
 
 class temp():
     class WindowGen():
         def __init__(self, input_width, label_width, shift, 
-                   train_df, val_df, test_df,
+                   data,
                    label_columns=None):
-            self.train_df = train_df
-            self.val_df = val_df
-            self.test_df = test_df
+            prep = pd.PrepData()
+            self.train_data, self.val_data, self.test_data = prep.prep_data(data)
             self.label_columns = label_columns
             if label_columns is not None:
                 self.label_columns_indices = {name: i for i, name in enumerate(label_columns)}
-            self.column_indices = {name: i for i, name in enumerate(train_df.columns)}
+            self.column_indices = {name: i for i, name in enumerate(self.train_data.columns)}
             self.input_width = input_width
             self.label_width = label_width
             self.shift = shift
@@ -35,7 +36,7 @@ class temp():
                 f'Label indices: {self.label_indices}',
                 f'Label column name(s): {self.label_columns}'])          
 
-    def plot(self, scaler, model=None, plot_col = 'Open', max_subplots=1):
+    def plot(self, model=None, plot_col = 'Open', max_subplots=1):
         inputs, labels = self.example
         revert = pd.PrepData()
         plot.figure(figsize=(12,8))
@@ -44,7 +45,7 @@ class temp():
         for n in range(max_n):
             plot.subplot(max_n, 1, n+1)
             plot.ylabel(f'{plot_col} [normed]')
-            displayinputs = revert.revert_data(inputs[n,:,:], scaler)
+            displayinputs = revert.revert_data(inputs[n,:,:])
             plot.plot(self.input_indices, displayinputs[:, plot_col_index], label='Input', marker='.', zorder=-10)
             if self.label_columns:
                 label_col_index = self.label_columns_indices.get(plot_col, None)
@@ -53,11 +54,11 @@ class temp():
 
             if label_col_index is None:
                 continue
-            displaylabels = revert.revert_data(labels[n,:,:], scaler)
-            plot.scatter(self.label_indices, displaylabels[:, label_col_index], edgecolors='k', label='Actual', c='#2ca02c', s=64)
+            displaylabels = revert.revert_data(labels[n,:,:])
+            plot.plot(self.label_indices, displaylabels[:, label_col_index], label='Actual', c='#2ca02c', marker='.', zorder=-10)
             if model is not None:
                 predictions = model(inputs)
-                predictions = revert.revert_data(predictions[n,:,:], scaler)
+                predictions = revert.revert_data(predictions[n,:,:])
                 plot.scatter(self.label_indices, predictions[:, label_col_index], marker='X', edgecolors='k', label='Prediction', c='#ff7f0e', s=64)
             if n == 0:
                 plot.legend()
@@ -83,13 +84,15 @@ class temp():
 
     def make_dataset(self, data):
         data = np.array(data, dtype=np.float32)
+        global batch_size
+        batch_size = 10
         ds = tf.keras.utils.timeseries_dataset_from_array(
         data=data,
         targets=None,
         sequence_length=self.total_window_size,
         sequence_stride=1,
         shuffle=True,
-        batch_size=32,)
+        batch_size=batch_size)
 
         ds = ds.map(self.split_window)
 
@@ -98,15 +101,15 @@ class temp():
 
     @property
     def train(self):
-        return self.make_dataset(self.train_df)
+        return self.make_dataset(self.train_data)
 
     @property
     def val(self):
-        return self.make_dataset(self.val_df)
+        return self.make_dataset(self.val_data)
 
     @property
     def test(self):
-        return self.make_dataset(self.test_df)
+        return self.make_dataset(self.test_data)
 
     @property
     def example(self):
@@ -119,6 +122,7 @@ class temp():
     WindowGen.val = val
     WindowGen.test = test
     WindowGen.example = example
+
     class FeedBack(tf.keras.Model):
         def __init__(self, units, out_steps):
             super().__init__()
@@ -126,6 +130,7 @@ class temp():
             self.units = units
             self.lstm_cell = tf.keras.layers.LSTMCell(units)
             self.lstm_rnn = tf.keras.layers.RNN(self.lstm_cell, return_state=True)
+            self.lstm_cell2 = tf.keras.layers.LSTMCell(units)
             self.dense = tf.keras.layers.Dense(2)
             
 
@@ -151,16 +156,18 @@ class temp():
 
     FeedBack.call = call
 
-    def compile_and_fit(model, window):
+    def compile_and_fit(model, window, patience=15):
         MAX_EPOCHS = 300
-
+        stop = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=patience, mode='min', restore_best_weights=True)
         model.compile(loss=tf.keras.losses.MeanSquaredError(),
                 optimizer=tf.keras.optimizers.Adam(),
-                metrics=[tf.keras.metrics.MeanAbsoluteError()])
+                metrics=[tf.keras.metrics.RootMeanSquaredError()])
 
 
         history = model.fit(window.train, epochs=MAX_EPOCHS,
-                      validation_data=window.val)
-        return history
+                      validation_data=window.val, 
+                      callbacks=stop)
+                      
+        return history, batch_size
 
      

@@ -2,6 +2,7 @@ from sklearn.preprocessing import MinMaxScaler
 import tensorflow as tf
 import pandas
 import numpy as np
+import math
 
 
 class PrepData():
@@ -22,8 +23,9 @@ class PrepData():
         undo_n = []
         for i in data_list:
             for x in i.columns:
-                std = np.std(i[x].values)
-                mean = np.mean(i[x].values, dtype=np.float64)
+                mean = (math.fsum(i[x].values))/len(i[x].values)
+                var = sum(pow(c-mean,2) for c in i[x].values) / len(i[x].values)
+                std = math.sqrt(var)
                 values = [(y-mean)/std for y in i[x].values]
                 i[x].iloc[:] = values
             undo_n = np.append(undo_n, np.array([std, mean]))
@@ -31,20 +33,19 @@ class PrepData():
 
         return data_list[0], data_list[1], data_list[2]
 
-    def denormalize(self, data):      
-        
+    def denormalize(self, data):             
         std = undo_n[-1,0] 
         mean = undo_n[-1, 1]
         v_arr = data.numpy()
         for i in range(v_arr.shape[1]):
-            values = [(y*std) + mean for y in v_arr[i]]
-            v_arr[i] = values
-        return data[0], data[1], data[2]
+            values = [(y*std) + mean for y in v_arr[:, i]]
+            v_arr[:, i] = values
+        return v_arr
            
     def prep_data(self, data):
        train_data, val_data, test_data = self.normalize(data)     
        return train_data, val_data, test_data
 
     def revert_data(self, data):
-       train_data, val_data, test_data = self.denormalize(data)
-       return train_data, val_data, test_data
+       data = self.denormalize(data)
+       return data

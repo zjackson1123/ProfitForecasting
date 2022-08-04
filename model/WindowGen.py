@@ -59,7 +59,7 @@ class temp():
             if model is not None:
                 predictions = model(inputs)
                 predictions = revert.revert_data(predictions[n,:,:])
-                plot.scatter(self.label_indices, predictions[:, label_col_index], marker='X', edgecolors='k', label='Prediction', c='#ff7f0e', s=64)
+                plot.plot(self.label_indices, predictions[:, label_col_index], marker='.', label='Prediction', c='#ff7f0e')
             if n == 0:
                 plot.legend()
         img = BytesIO()
@@ -85,7 +85,7 @@ class temp():
     def make_dataset(self, data):
         data = np.array(data, dtype=np.float32)
         global batch_size
-        batch_size = 10
+        batch_size = 32
         ds = tf.keras.utils.timeseries_dataset_from_array(
         data=data,
         targets=None,
@@ -128,10 +128,10 @@ class temp():
             super().__init__()
             self.out_steps = out_steps
             self.units = units
-            self.lstm_cell = tf.keras.layers.LSTMCell(units)
+            self.lstm_cell = tf.keras.layers.LSTMCell(units, activation='tanh')
             self.lstm_rnn = tf.keras.layers.RNN(self.lstm_cell, return_state=True)
             self.lstm_cell2 = tf.keras.layers.LSTMCell(units)
-            self.dense = tf.keras.layers.Dense(2)
+            self.dense = tf.keras.layers.Dense(1, activation='relu')
             
 
     def warmup(self, inputs):
@@ -156,17 +156,17 @@ class temp():
 
     FeedBack.call = call
 
-    def compile_and_fit(model, window, patience=5):
-        MAX_EPOCHS = 30
-        stop = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=patience, mode='min', restore_best_weights=True)
+    def compile_and_fit(model, window, patience=10):
+        MAX_EPOCHS = 150
+        stop = tf.keras.callbacks.EarlyStopping(monitor='val-loss', patience=patience, mode='min', restore_best_weights=True)
         model.compile(loss=tf.keras.losses.MeanSquaredError(),
                 optimizer=tf.keras.optimizers.Adam(),
                 metrics=[tf.keras.metrics.RootMeanSquaredError()])
 
 
         history = model.fit(window.train, epochs=MAX_EPOCHS,
-                      validation_data=window.val, 
-                      callbacks=stop)
+                      validation_data=window.val)#, 
+                      #callbacks=stop)
                       
         return history, batch_size
 

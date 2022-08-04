@@ -2,7 +2,7 @@ from pickle import TRUE
 import numpy as np
 import matplotlib.pyplot as plot
 import tensorflow as tf
-import Model.PrepData as pd
+import model.PrepData as pd
 from sklearn import metrics
 from io import BytesIO
 import base64
@@ -156,8 +156,8 @@ class temp():
 
     FeedBack.call = call
 
-    def compile_and_fit(model, window, patience=15):
-        MAX_EPOCHS = 300
+    def compile_and_fit(model, window, patience=5):
+        MAX_EPOCHS = 30
         stop = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=patience, mode='min', restore_best_weights=True)
         model.compile(loss=tf.keras.losses.MeanSquaredError(),
                 optimizer=tf.keras.optimizers.Adam(),

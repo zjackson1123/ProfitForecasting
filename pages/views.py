@@ -1,6 +1,6 @@
 from flask import render_template
-from Pages import app
-from Model import MLmodel
+from pages import app
+from model import MLmodel
 
 @app.route('/')
 @app.route('/home')

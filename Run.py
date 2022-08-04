@@ -1,5 +1,5 @@
 import os 
-from Pages import app
+from pages import app
 
 
 if __name__ == "__main__":

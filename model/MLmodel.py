@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import numpy
-import Model.WindowGen as win
+import model.WindowGen as win
 import pandas
 
 

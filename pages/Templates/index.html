@@ -15,9 +15,13 @@
 
     <img src="data:image/png;base64, {{ plot }}" alt="Placeholder Text" height="800" width="800" />
     <br />
-    <span>Loss: {{ loss }}</span>
+    <span>Training Loss: {{ t_loss }}</span>
     <br />
-    <span>RMSE: {{ rmse }}</span>
+    <span>Training RMSE: {{ t_rmse }}</span>
+    <br />
+    <span>Val Loss: {{ v_loss }}</span>
+    <br />
+    <span>Val RMSE: {{ v_rmse }}</span>
     <br />
     <span>Number of Epochs: {{ epochs }}</span>
     <br />

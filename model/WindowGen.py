@@ -2,6 +2,7 @@ from pickle import TRUE
 import numpy as np
 import matplotlib.pyplot as plot
 import tensorflow as tf
+from tensorflow.keras.constraints import 
 import model.PrepData as pd
 from sklearn import metrics
 from io import BytesIO
@@ -59,7 +60,7 @@ class temp():
             if model is not None:
                 predictions = model(inputs)
                 predictions = revert.revert_data(predictions[n,:,:])
-                plot.plot(self.label_indices, predictions[:, label_col_index], marker='.', label='Prediction', c='#ff7f0e')
+                plot.plot(self.label_indices, predictions[:, label_col_index], marker='.', label='Prediction', c='#ff7f0e', zorder=-10)
             if n == 0:
                 plot.legend()
         img = BytesIO()
@@ -128,10 +129,10 @@ class temp():
             super().__init__()
             self.out_steps = out_steps
             self.units = units
-            self.lstm_cell = tf.keras.layers.LSTMCell(units, activation='tanh')
-            self.lstm_rnn = tf.keras.layers.RNN(self.lstm_cell, return_state=True)
-            self.lstm_cell2 = tf.keras.layers.LSTMCell(units)
-            self.dense = tf.keras.layers.Dense(1, activation='relu')
+            self.lstm_cell = tf.keras.layers.LSTMCell(units, activation='tanh', kernel_contraint=tf.keras.constraints.MaxNorm(3))
+            self.lstm_rnn = tf.keras.layers.RNN(self.lstm_cell, return_state=True, kernel_contraint=tf.keras.constraints.MaxNorm(3))
+            self.dropout = tf.keras.layers.Dropout(0.2)
+            self.dense = tf.keras.layers.Dense(1)
             
 
     def warmup(self, inputs):
@@ -146,8 +147,7 @@ class temp():
       predictions.append(prediction)
       for n in range(1, self.out_steps):
         x = prediction
-        x, state = self.lstm_cell(x, states=state,
-                                  training=training)
+        x, state = self.lstm_cell(x, states=state, training=training)
         prediction = self.dense(x)
         predictions.append(prediction)
       predictions = tf.stack(predictions)
@@ -156,17 +156,18 @@ class temp():
 
     FeedBack.call = call
 
-    def compile_and_fit(model, window, patience=10):
+    def compile_and_fit(model, window, patience=7):
         MAX_EPOCHS = 150
-        stop = tf.keras.callbacks.EarlyStopping(monitor='val-loss', patience=patience, mode='min', restore_best_weights=True)
-        model.compile(loss=tf.keras.losses.MeanSquaredError(),
-                optimizer=tf.keras.optimizers.Adam(),
-                metrics=[tf.keras.metrics.RootMeanSquaredError()])
+        stop = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=patience, mode='min', restore_best_weights=True)
+        optimizer = tf.keras.optimizers.SGD(learning_rate=0.1, momentum=0.9)
+        model.compile(loss=tf.keras.losses.MeanAbsoluteError(),
+                optimizer=optimizer,
+                metrics=['accuracy'])
 
 
         history = model.fit(window.train, epochs=MAX_EPOCHS,
-                      validation_data=window.val)#, 
-                      #callbacks=stop)
+                      validation_data=window.val, 
+                      callbacks=stop, verbose=2)
                       
         return history, batch_size
 
